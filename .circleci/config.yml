@@ -1,29 +1,38 @@
 version: 2.1
 
 jobs:
+
   build-frontend:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
-      - run: npm i --prefix frontend
-      - run: npm run lint --prefix frontend
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - project/frontend/node_modules
-
+      - run:
+          name: Install dependencies
+          command: |
+            cd frontend
+            npm install
+      - run:
+          name: Compile the code
+          command: |
+            cd frontend
+            npm run build
+            
   build-backend:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
-      - run: npm i --prefix backend
-      - run: npm run lint --prefix backend
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - project/backend/node_modules
+      - run:
+          name: Install dependencies
+          command: |
+            cd backend
+            npm install
+      - run:
+          name: Compile the code
+          command: |
+            cd backend
+            npm run build
             
 workflows:
   default:
