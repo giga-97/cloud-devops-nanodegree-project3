@@ -19,7 +19,8 @@ jobs:
           command: |
             cd frontend
             npm run build
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
       
   build-backend:
     docker:
@@ -36,7 +37,8 @@ jobs:
           command: |
             cd backend
             npm run build
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
             
   test-frontend:
     docker:
@@ -53,7 +55,8 @@ jobs:
           command: |
             cd frontend
             npm run test
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
       
   test-backend:
     docker:
@@ -70,7 +73,8 @@ jobs:
           command: |
             cd backend
             npm run test
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
             
   scan-frontend:
     docker:
@@ -87,7 +91,8 @@ jobs:
           command: |
             cd frontend
             npm audit fix --audit-level=critical --force
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
 
   scan-backend:
     docker:
@@ -104,7 +109,8 @@ jobs:
           command: |
             cd backend
             npm audit fix --audit-level=critical --force
-      - slack/notify
+      - slack/notify:
+          template: basic_fail_1
       
 workflows:
   default:
