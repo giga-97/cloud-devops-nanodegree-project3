@@ -227,6 +227,8 @@ jobs:
           name: Install dependencies
           command: |
             apk add --update ansible
+            apk add --update tar
+            apk add --update gzip
             cat .circleci/ansible/inventory.txt
       - run:
           name: Configure server
@@ -261,7 +263,7 @@ jobs:
 workflows:
   default:
     jobs:
-      - build-frontend
+      _--_- build-frontend
       - build-backend
       - test-frontend:
           requires:
