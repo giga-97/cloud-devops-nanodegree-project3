@@ -32,7 +32,8 @@ commands:
           
 orbs: 
   slack: circleci/slack@4.5.0
-
+  aws-cli: circleci/aws-cli@1.3.0
+  
 jobs:
   build-frontend:
     docker:
@@ -249,7 +250,13 @@ jobs:
           when: on_fail
           command: |
             apk add --update py3-pip && pip3 install --upgrade pip && pip3 install awscli
-      - destroy-environment
+      - destroy-aws-resource
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
 
 workflows:
   default:
