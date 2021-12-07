@@ -8,9 +8,9 @@ commands:
       - run:
           name: Delete all files in the current S3 bucket
           command: |
-            if aws s3api head-bucket --bucket udapeople-s3bucket-${CIRCLE_WORKFLOW_ID}
+            if aws s3api head-bucket --bucket udapeople-s3bucket-${CIRCLE_WORKFLOW_ID:0:7}
             then
-              aws s3 rm s3://udapeople-s3bucket-${CIRCLE_WORKFLOW_ID}/ --recursive
+              aws s3 rm s3://udapeople-s3bucket-${CIRCLE_WORKFLOW_ID:0:7}/ --recursive
             fi
           when: on_fail
       - run:
@@ -20,13 +20,13 @@ commands:
             then 
               aws cloudformation delete-stack --stack-name udapeople-cloudfront
             fi
-            if aws cloudformation wait stack-exists --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID}
+            if aws cloudformation wait stack-exists --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
             then 
-              aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID}
+              aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
             fi
-            if aws cloudformation wait stack-exists --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID}
+            if aws cloudformation wait stack-exists --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
             then
-              aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID}
+              aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
             fi
           when: on_fail
           
@@ -176,8 +176,8 @@ jobs:
           command: |
             aws cloudformation deploy \
               --template-file .circleci/files/backend.yml \
-              --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID} \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}" \
+              --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}" \
               --region ${AWS_DEFAULT_REGION} \
               --tags project=udapeople
       - run:
@@ -185,8 +185,8 @@ jobs:
           command: |
             aws cloudformation deploy \
               --template-file .circleci/files/frontend.yml \
-              --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID} \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}" \
+              --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}" \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}" \
               --region ${AWS_DEFAULT_REGION} \
               --tags project=udapeople
       - run:
