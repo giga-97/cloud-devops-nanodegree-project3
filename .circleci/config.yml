@@ -1,6 +1,35 @@
 # Giga
 version: 2.1
 
+commands:
+  destroy-aws-resource:
+    description: Destroy all cloudformation stacks given a workflow ID.
+    steps:
+      - run:
+          name: Delete all files in the current S3 bucket
+          command: |
+            if aws s3api head-bucket --bucket udapeople-s3bucket-${CIRCLE_WORKFLOW_ID}
+            then
+              aws s3 rm s3://udapeople-s3bucket-${CIRCLE_WORKFLOW_ID}/ --recursive
+            fi
+          when: on_fail
+      - run:
+          name: Delete the current AWS CloudFormation stacks
+          command: |
+            if aws cloudformation wait stack-exists --stack-name udapeople-cloudfront
+            then 
+              aws cloudformation delete-stack --stack-name udapeople-cloudfront
+            fi
+            if aws cloudformation wait stack-exists --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID}
+            then 
+              aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID}
+            fi
+            if aws cloudformation wait stack-exists --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID}
+            then
+              aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID}
+            fi
+          when: on_fail
+          
 orbs: 
   slack: circleci/slack@4.5.0
 
@@ -137,6 +166,54 @@ jobs:
           event: pass
           template: success_tagged_deploy_1
       
+  create-infrastructure:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      # - run:
+      #     name: Delete all S3 buckets whose names start with 'udapeople-s3bucket-'
+      #     command: |
+      #       OLD_BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'udapeople-s3bucket-')].Name" --output text)
+      #       for bucket in ${OLD_BUCKET}
+      #       do  
+      #           echo deleting bucket $bucket
+      #           aws s3 rb --force s3://$bucket
+      #       done
+      - run:
+          name: Create/Update frontend infrastructure via AWS CloudFormation
+          command: |
+            aws cloudformation deploy \
+              --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID} \
+              --template-file .circleci/files/frontend.yml \
+              --region ${AWS_DEFAULT_REGION} \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}"
+      - run:
+          name: Create/Update backend infrastructure via AWS CloudFormation
+          command: |
+            aws cloudformation deploy \
+              --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID} \
+              --template-file .circleci/files/backend.yml \
+              --region ${AWS_DEFAULT_REGION} \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}"
+      - run:
+          name: Get and save public DNS of EC2 instance to https://memstash.io/
+          command: |
+            PUBLIC_DNS=$(aws ec2 describe-instances --region ${AWS_DEFAULT_REGION} --filters 'Name=tag:Name,Values=udapeople-backend-ec2-*' --query "Reservations[*].Instances[0].PublicDnsName" --output text)
+            echo ${PUBLIC_DNS}
+            curl -H "Content-Type: text/plain" \
+               -H "token: ${CIRCLE_WORKFLOW_ID}" \
+               --request PUT \
+               --data ${PUBLIC_DNS} \
+               https://api.memstash.io/values/public_dns
+      - destroy-aws-resource
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
+      - slack/notify:
+          event: pass
+          template: success_tagged_deploy_1
+      
 workflows:
   default:
     jobs:
@@ -150,7 +227,10 @@ workflows:
             - build-backend
       - scan-frontend:
           requires:
-            - test-frontend
+            - build-frontend
       - scan-backend:
           requires:
-            - test-backend
+            - build-backend
+      - create-infrastructure:
+          requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+          
