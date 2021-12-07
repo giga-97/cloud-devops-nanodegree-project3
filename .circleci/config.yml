@@ -207,12 +207,12 @@ jobs:
           paths:
             - project/.circleci/ansible/inventory.txt
       - destroy-aws-resource
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-      - slack/notify:
-          event: pass
-          template: success_tagged_deploy_1
+      # - slack/notify:
+      #    event: fail
+      #    template: basic_fail_1
+      # - slack/notify:
+      #   event: pass
+      #    template: success_tagged_deploy_1
 
   configure-infrastructure:
     docker:
@@ -251,12 +251,12 @@ jobs:
           command: |
             apk add --update py3-pip && pip3 install --upgrade pip && pip3 install awscli
       - destroy-aws-resource
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-      - slack/notify:
-          event: pass
-          template: success_tagged_deploy_1
+      # - slack/notify:
+      #    event: fail
+      #    template: basic_fail_1
+      # - slack/notify:
+      #   event: pass
+      #    template: success_tagged_deploy_1
 
 workflows:
   default:
