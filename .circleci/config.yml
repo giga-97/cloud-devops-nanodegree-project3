@@ -171,41 +171,36 @@ jobs:
       - image: amazon/aws-cli
     steps:
       - checkout
-      # - run:
-      #     name: Delete all S3 buckets whose names start with 'udapeople-s3bucket-'
-      #     command: |
-      #       OLD_BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'udapeople-s3bucket-')].Name" --output text)
-      #       for bucket in ${OLD_BUCKET}
-      #       do  
-      #           echo deleting bucket $bucket
-      #           aws s3 rb --force s3://$bucket
-      #       done
       - run:
-          name: Create/Update frontend infrastructure via AWS CloudFormation
+          name: Ensure back-end infrastructure exists
           command: |
             aws cloudformation deploy \
-              --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID} \
-              --template-file .circleci/files/frontend.yml \
-              --region ${AWS_DEFAULT_REGION} \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}"
-      - run:
-          name: Create/Update backend infrastructure via AWS CloudFormation
-          command: |
-            aws cloudformation deploy \
-              --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID} \
               --template-file .circleci/files/backend.yml \
+              --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID} \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}" \
               --region ${AWS_DEFAULT_REGION} \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}"
+              --tags project=udapeople
       - run:
-          name: Get and save public DNS of EC2 instance to https://memstash.io/
+          name: Ensure front-end infrastructure exist
           command: |
-            PUBLIC_DNS=$(aws ec2 describe-instances --region ${AWS_DEFAULT_REGION} --filters 'Name=tag:Name,Values=udapeople-backend-ec2-*' --query "Reservations[*].Instances[0].PublicDnsName" --output text)
-            echo ${PUBLIC_DNS}
-            curl -H "Content-Type: text/plain" \
-               -H "token: ${CIRCLE_WORKFLOW_ID}" \
-               --request PUT \
-               --data ${PUBLIC_DNS} \
-               https://api.memstash.io/values/public_dns
+            aws cloudformation deploy \
+              --template-file .circleci/files/frontend.yml \
+              --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID} \
+              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID}" \
+              --region ${AWS_DEFAULT_REGION} \
+              --tags project=udapeople
+      - run:
+          name: Add back-end ip to ansible inventory
+          command: |
+            aws ec2 describe-instances \
+              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+              --filters "Name=tag:project,Values=udapeople" \
+              --output text >> .circleci/ansible/inventory.txt
+            cat .circleci/ansible/inventory.txt
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/.circleci/ansible/inventory.txt
       - destroy-aws-resource
       - slack/notify:
           event: fail
