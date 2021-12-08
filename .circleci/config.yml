@@ -34,13 +34,13 @@ commands:
           name: Revert migrations
           working_directory: ./backend
           command: |
-            SUCCESS=$(curl -H "token: 2a9e15d6-b9fa-4b1f-a5dc-e3b9643a9b63" --request GET https://api.memstash.io/values/DB_MIGRATION_<< parameters.id >>)
+            SUCCESS=$(curl -H "token: ecdfc255-81e1-4056-9efa-2d7fa10812e1" \
+            --request GET https://api.memstash.io/values/DB_MIGRATION_<< parameters.workflow_id >>)
             echo $SUCCESS
-            if [[ "$SUCCESS" == "success" ]]
+            if(( $SUCCESS==1 )); 
             then
-              pwd
-              ls -la
-              npm run migrations:revert
+            cd backend
+            npm run migrations:revert
             fi
           when: on_fail
           
@@ -54,6 +54,8 @@ jobs:
       - image: circleci/node:13.8.0
     steps:
       - checkout
+      - restore_cache:
+          keys: [frontend-build]
       - run:
           name: Install dependencies
           command: |
@@ -64,6 +66,9 @@ jobs:
           command: |
             cd frontend
             npm run build
+      - save_cache:
+          paths: [frontend/node_modules]
+          key: frontend-build
       - slack/notify:
           event: fail
           template: basic_fail_1
@@ -76,6 +81,8 @@ jobs:
       - image: circleci/node:13.8.0
     steps:
       - checkout
+      - restore_cache:
+          keys: [backend-build]
       - run:
           name: Install dependencies
           command: |
@@ -86,6 +93,14 @@ jobs:
           command: |
             cd backend
             npm run build
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/backend/dist
+            - project/backend/node_modules
+      - save_cache:
+          paths: [backend/node_modules]
+          key: backend-build
       - slack/notify:
           event: fail
           template: basic_fail_1
@@ -217,7 +232,7 @@ jobs:
               --output text >> .circleci/ansible/inventory.txt
             cat .circleci/ansible/inventory.txt
       - persist_to_workspace:
-          root: .
+          root: ~/
           paths:
             - project/.circleci/ansible/inventory.txt
       - destroy_environment:
@@ -232,18 +247,32 @@ jobs:
   configure-infrastructure:
     docker:
       - image: python:3.7-alpine3.11
+        environment:
+          NODE_ENV: "local"
+          VERSION: "1"
+          ENVIRONMENT: "production"
+          TYPEORM_CONNECTION: $TYPEORM_CONNECTION
+          TYPEORM_HOST: $TYPEORM_HOST
+          TYPEORM_USERNAME: $TYPEORM_USERNAME
+          TYPEORM_PASSWORD: $TYPEORM_PASSWORD
+          TYPEORM_DATABASE: $TYPEORM_DATABASE
+          TYPEORM_PORT: $TYPEORM_PORT
+          TYPEORM_ENTITIES: $TYPEORM_ENTITIES
     steps:
       - checkout
       - add_ssh_keys:
           fingerprints: ["ba:d1:70:ec:6c:24:80:7f:8a:cd:30:c3:7a:93:69:3f"]
       - attach_workspace:
-          at: .
+          at: ~/
       - run:
           name: Install dependencies
           command: |
+            apk add curl
             apk add --update ansible
             apk add --update tar
             apk add --update gzip
+            apk add openssh-client
+            pip3 install awscli
             cat .circleci/ansible/inventory.txt
       - run:
           name: Configure server
@@ -285,6 +314,7 @@ jobs:
           name: Run migrations
           command: |
             cd backend
+            ls -l
             cat .env
             npm i
             npm run build
