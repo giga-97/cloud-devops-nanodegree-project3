@@ -34,13 +34,13 @@ commands:
           name: Revert migrations
           working_directory: ./backend
           command: |
-            SUCCESS=$(curl -H "token: ecdfc255-81e1-4056-9efa-2d7fa10812e1" \
-            --request GET https://api.memstash.io/values/DB_MIGRATION_<< parameters.workflow_id >>)
+            SUCCESS=$(curl -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request GET https://api.memstash.io/values/DB_MIGRATION_<< parameters.id >>)
             echo $SUCCESS
-            if(( $SUCCESS==1 )); 
+            if [[ "$SUCCESS" == "success" ]]
             then
-            cd backend
-            npm run migrations:revert
+              pwd
+              ls -la
+              npm run migrations:revert
             fi
           when: on_fail
           
