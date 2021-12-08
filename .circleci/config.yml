@@ -94,7 +94,6 @@ jobs:
           command: |
             cd backend
             npm run build
-            cp .env dist/.env
       - persist_to_workspace:
           root: ~/
           paths:
