@@ -260,6 +260,106 @@ jobs:
       #   event: pass
       #    template: success_tagged_deploy_1
 
+  run-migrations:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - run:
+          name: Run migrations
+          command: |
+            cd backend
+            cat .env
+            npm i
+            npm run build
+            npm run migrations > migrations_dump.txt
+      - run:
+          name: Send migration results to memstash
+          command: |
+            echo "has been done successfully" > ./migration_status.txt
+            pwd && ls -al
+            if grep -q "has been done successfully" ./migration_status.txt 
+            then 
+              echo "has been done successfully"
+              curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request PUT --data "1" https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID}
+            else
+              echo "has failed"
+              curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request PUT --data "0" https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID}
+            fi
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+          
+  deploy-frontend:
+    docker:
+      - image: sleavely/node-awscli:14.x
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      # No need to install dependencies as the docker image has required packages
+      - run:
+          name: Get backend url
+          command: |
+            API_URL=$(curl -H "Content-Type: text/plain" \
+            -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
+            --request GET \
+            https://api.memstash.io/values/backend_url)
+            echo $API_URL
+            echo "${API_URL}"
+            echo "NODE_ENV=production" >> frontend/.env
+            echo "API_URL=${API_URL}" >> frontend/.env
+            cat frontend/.env
+      - run:
+          name: Deploy frontend objects
+          working_directory: ./frontend
+          command: |
+            npm i
+            npm run build
+            ls -l
+            tar -czvf artifact-"${CIRCLE_WORKFLOW_ID:0:7}".tar.gz dist
+            aws s3 cp ./dist "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+
+  deploy-backend:
+    docker:
+      - image: python:3.7-alpine3.11
+        environment:
+          NODE_ENV: "local"
+          VERSION: "1"
+          ENVIRONMENT: "production"
+          TYPEORM_CONNECTION: $TYPEORM_CONNECTION
+          TYPEORM_HOST: $TYPEORM_HOST
+          TYPEORM_USERNAME: $TYPEORM_USERNAME
+          TYPEORM_PASSWORD: $TYPEORM_PASSWORD
+          TYPEORM_DATABASE: $TYPEORM_DATABASE
+          TYPEORM_PORT: $TYPEORM_PORT
+          TYPEORM_ENTITIES: $TYPEORM_ENTITIES
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints: ["ba:d1:70:ec:6c:24:80:7f:8a:cd:30:c3:7a:93:69:3f"]
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          working_directory: /tmp
+          command: |
+            apk add --update ansible curl rsync openssh nodejs npm
+            pip3 install awscli
+      - run:
+          name: Deploy backend
+          working_directory: ./.circleci/ansible
+          command: |
+            ls -l
+            cat inventory
+            ansible-playbook -i inventory.txt deploy-backend.yml -vv
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+
 workflows:
   default:
     jobs:
@@ -282,3 +382,12 @@ workflows:
       - configure-infrastructure:
           requires:
             - create-infrastructure
+      - run-migrations:
+          requires:
+            - configure-infrastructure
+      - deploy-frontend:
+          requires:
+            - run-migrations
+      - deploy-backend:
+          requires:
+            - run-migrations
