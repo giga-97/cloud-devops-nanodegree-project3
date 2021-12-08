@@ -311,6 +311,7 @@ jobs:
           name: Run migrations
           working_directory: ./backend
           command: |
+            npm install typescript -g
             npm run migrations > migration_status
       - run:
           name: Send migration results to memstash
