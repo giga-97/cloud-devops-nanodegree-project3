@@ -393,13 +393,6 @@ jobs:
             cd .circleci/ansible && \
             ansible-playbook -i inventory.txt deploy-backend.yml
       # Here's where you will add some code to rollback on failure
-      - run:
-          name: Ansible Playbook
-          command: |
-            npm install
-            npm i -g pm2
-            pm2 stop default
-            pm2 start npm -- start
       - destroy_environment:
           id: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert_migrations:
