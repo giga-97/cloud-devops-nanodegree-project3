@@ -2,32 +2,26 @@
 version: 2.1
 
 commands:
-  destroy-aws-resource:
-    description: Destroy all cloudformation stacks given a workflow ID.
+  destroy_environment:
+    description: Destroy Cloud Formation Stacks and infrastructure
+    parameters:
+      id:
+        type: string
     steps:
       - run:
-          name: Delete all files in the current S3 bucket
+          name: Destroy udapeople backend cfn stack
           command: |
-            if aws s3api head-bucket --bucket udapeople-s3bucket-${CIRCLE_WORKFLOW_ID:0:7}
-            then
-              aws s3 rm s3://udapeople-s3bucket-${CIRCLE_WORKFLOW_ID:0:7}/ --recursive
-            fi
+            aws cloudformation delete-stack --stack-name udapeople-backend-<< parameters.id >>
+          environment:
+            TERM: xterm-256color
           when: on_fail
       - run:
-          name: Delete the current AWS CloudFormation stacks
+          name: Destroy udapeople frontend cfn stack and S3 bucket
           command: |
-            if aws cloudformation wait stack-exists --stack-name udapeople-cloudfront
-            then 
-              aws cloudformation delete-stack --stack-name udapeople-cloudfront
-            fi
-            if aws cloudformation wait stack-exists --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
-            then 
-              aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
-            fi
-            if aws cloudformation wait stack-exists --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
-            then
-              aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
-            fi
+            aws s3 rm s3://udapeople-<< parameters.id >> --recursive
+            aws cloudformation delete-stack --stack-name udapeople-frontend-<< parameters.id >>
+          environment:
+              TERM: xterm-256color
           when: on_fail
           
 orbs: 
@@ -206,7 +200,8 @@ jobs:
           root: ~/
           paths:
             - project/.circleci/ansible/inventory.txt
-      - destroy-aws-resource
+      - destroy_environment:
+          id: ${CIRCLE_WORKFLOW_ID:0:7}
       # - slack/notify:
       #    event: fail
       #    template: basic_fail_1
@@ -252,7 +247,8 @@ jobs:
           when: on_fail
           command: |
             apk add --update py3-pip && pip3 install --upgrade pip && pip3 install awscli
-      - destroy-aws-resource
+      - destroy_environment:
+          id: ${CIRCLE_WORKFLOW_ID:0:7}
       # - slack/notify:
       #    event: fail
       #    template: basic_fail_1
@@ -287,8 +283,8 @@ jobs:
               curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request PUT --data "0" https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID}
             fi
       # Here's where you will add some code to rollback on failure
-      - destroy-aws-resource:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy_environment:
+          id: ${CIRCLE_WORKFLOW_ID:0:7}
           
   deploy-frontend:
     docker:
@@ -357,8 +353,8 @@ jobs:
             cat inventory
             ansible-playbook -i inventory.txt deploy-backend.yml -vv
       # Here's where you will add some code to rollback on failure
-      - destroy-aws-resource:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy_environment:
+          id: ${CIRCLE_WORKFLOW_ID:0:7}
 
 workflows:
   default:
