@@ -263,7 +263,7 @@ jobs:
 workflows:
   default:
     jobs:
-      _--_- build-frontend
+      - build-frontend
       - build-backend
       - test-frontend:
           requires:
