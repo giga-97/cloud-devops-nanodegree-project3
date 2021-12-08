@@ -10,21 +10,20 @@
      
   - name: "move files to server"
     become: yes
-    synchronize:
+    copy:
       src: /root/project/backend_artifact.tar.gz
-      dest: ./udapeople
-      recursive: true
+      dest: /home/ubuntu/udapeople
 
   - name: "move node modules"
     become: yes
     synchronize:
       src: /root/project/backend/node_modules
-      dest: ./udapeople
+      dest: /home/ubuntu/udapeople
       recursive: true
       
   - name: "Install package dependencies"
     shell: |
-      cd ./udapeople
+      cd /home/ubuntu/udapeople
       tar -xzvf backend_artifact.tar.gz -C backend
       rm backend_artifact.tar.gz
       cd backend/
@@ -36,7 +35,7 @@
     become: true
     command: pm2 start -f ./main.js
     args:
-      chdir: ./udapeople/backend/dist
+      chdir: /home/ubuntu/udapeople/backend/dist
     environment:
       ENVIRONMENT: production
       TYPEORM_CONNECTION: "{{ lookup('env', 'TYPEORM_CONNECTION') }}"
