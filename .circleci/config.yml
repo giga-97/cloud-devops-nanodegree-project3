@@ -227,14 +227,13 @@ jobs:
       - run:
           name: Add back-end ip to ansible inventory
           command: |
-            aws ec2 describe-instances \
+            BACKEND_IP=$(aws ec2 describe-instances \
               --query 'Reservations[*].Instances[*].PublicIpAddress' \
               --filters "Name=tag:project,Values=udapeople" \
-              --output text >> .circleci/ansible/inventory.txt
+              --output text)
+            echo $BACKEND_IP >> .circleci/ansible/inventory.txt
             cat .circleci/ansible/inventory.txt
-            curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
-                --request PUT \
-                --data $EC2_PUBGLIC_URL https://api.memstash.io/values/udacity-project-03-giga
+            curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request PUT --data "http://$BACKEND_IP:3030" https://api.memstash.io/values/BACKEND_URL
       - run:
           name: Add .env vars to backend distro
           command: |
@@ -349,12 +348,7 @@ jobs:
       - run:
           name: Get backend url
           command: |
-            API_URL=$(curl -H "Content-Type: text/plain" \
-            -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
-            --request GET \
-            https://api.memstash.io/values/backend_url)
-            echo $API_URL
-            echo "${API_URL}"
+            export API_URL=$(curl -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request GET https://api.memstash.io/values/BACKEND_URL)
             echo "NODE_ENV=production" >> frontend/.env
             echo "API_URL=${API_URL}" >> frontend/.env
             cat frontend/.env
@@ -425,6 +419,10 @@ jobs:
               --request GET https://api.memstash.io/values/udacity-project-03-giga)
             API_URL="http://${BACKEND_IP}:3030/api/status"
             echo "${API_URL}"
+            BACKEND_URL=$(curl -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request GET https://api.memstash.io/values/BACKEND_URL)
+            API_URL="http://${BACKEND_URL}:3030/api/status"
+            echo "${API_URL}"
+            curl "${API_URL}"
       - run:
           name: Frontend smoke test.
           command: |
