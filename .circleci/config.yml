@@ -234,7 +234,7 @@ jobs:
             cat .circleci/ansible/inventory.txt
             curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
                 --request PUT \
-                --data $EC2_PUBGLIC_URL https://api.memstash.io/values/udacity-project-03-giga && \
+                --data $EC2_PUBGLIC_URL https://api.memstash.io/values/udacity-project-03-giga
       - run:
           name: Add .env vars to backend distro
           command: |
