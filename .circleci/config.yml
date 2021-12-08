@@ -232,6 +232,9 @@ jobs:
               --filters "Name=tag:project,Values=udapeople" \
               --output text >> .circleci/ansible/inventory.txt
             cat .circleci/ansible/inventory.txt
+            curl -H "Content-Type: text/plain" -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
+                --request PUT \
+                --data $EC2_PUBGLIC_URL https://api.memstash.io/values/udacity-project-03-giga && \
       - run:
           name: Add .env vars to backend distro
           command: |
@@ -333,12 +336,16 @@ jobs:
           
   deploy-frontend:
     docker:
-      - image: sleavely/node-awscli:14.x
+      - image: python:3.7-alpine3.11
     steps:
       - checkout
       - attach_workspace:
-          at: .
-      # No need to install dependencies as the docker image has required packages
+          at: ~/
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update tar gzip ansible nodejs npm curl
+            pip install awscli
       - run:
           name: Get backend url
           command: |
@@ -369,42 +376,65 @@ jobs:
   deploy-backend:
     docker:
       - image: python:3.7-alpine3.11
-        environment:
-          NODE_ENV: "local"
-          VERSION: "1"
-          ENVIRONMENT: "production"
-          TYPEORM_CONNECTION: $TYPEORM_CONNECTION
-          TYPEORM_HOST: $TYPEORM_HOST
-          TYPEORM_USERNAME: $TYPEORM_USERNAME
-          TYPEORM_PASSWORD: $TYPEORM_PASSWORD
-          TYPEORM_DATABASE: $TYPEORM_DATABASE
-          TYPEORM_PORT: $TYPEORM_PORT
-          TYPEORM_ENTITIES: $TYPEORM_ENTITIES
     steps:
       - checkout
       - add_ssh_keys:
           fingerprints: ["ba:d1:70:ec:6c:24:80:7f:8a:cd:30:c3:7a:93:69:3f"]
       - attach_workspace:
-          at: .
+          at: ~/
+      - restore_cache:
+          keys: [backend-build]
       - run:
           name: Install dependencies
-          working_directory: /tmp
           command: |
-            apk add --update ansible curl rsync openssh nodejs npm
-            pip3 install awscli
+            apk add --update tar gzip ansible nodejs npm curl openssh-client
+            pip install awscli
       - run:
           name: Deploy backend
-          working_directory: ./.circleci/ansible
+          no_output_timeout: 30m
           command: |
-            ls -l
-            cat inventory
-            ansible-playbook -i inventory.txt deploy-backend.yml -vv
+            tar -C backend -czvf backend_artifact.tar.gz . && \
+            cd .circleci/ansible && \
+            ansible-playbook -i inventory.txt deploy-backend.yml
       # Here's where you will add some code to rollback on failure
       - destroy_environment:
           id: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert_migrations:
           id: ${CIRCLE_WORKFLOW_ID:0:7}
-
+          
+  smoke-test:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --no-cache \
+              curl \
+              python3 \
+              py3-pip \
+              && pip3 install --upgrade pip \
+              && pip3 install \
+              awscli \
+              && rm -rf /var/cache/apk/*
+      - run:
+          name: Backend smoke test.
+          command: |
+            BACKEND_IP=$(curl -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" \
+              --request GET https://api.memstash.io/values/udacity-project-03-giga)
+            API_URL="http://${BACKEND_IP}:3030/api/status"
+            echo "${API_URL}"
+      - run:
+          name: Frontend smoke test.
+          command: |
+            if curl -s  "http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com" | grep "Welcome"
+            then
+              return 1
+            else
+              return 1
+            fi
+            
 workflows:
   default:
     jobs:
@@ -436,3 +466,7 @@ workflows:
       - deploy-backend:
           requires:
             - run-migrations
+      - smoke-test:
+          requires:
+            - deploy-frontend
+            - deploy-backend
