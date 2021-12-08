@@ -299,12 +299,22 @@ jobs:
       - image: circleci/node:13.8.0
     steps:
       - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install AWS CLI dependencies
+          working_directory: /tmp
+          command: |
+            sudo apt-get update && sudo apt-get install -yy less
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
       - run:
           name: Run migrations
           working_directory: ./backend
           command: |
-            npm install typescript -g
-            npm run migrations > migration_status
+            sudo npm install typescript -g
+            sudo npm run migrations > migration_status
       - run:
           name: Send migration results to memstash
           working_directory: ./backend
@@ -319,7 +329,7 @@ jobs:
             fi
             echo "WorkflowID=${CIRCLE_WORKFLOW_ID:0:7}"
       # Here's where you will add some code to rollback on failure
-      - destroy_environment:
+     - destroy_environment:
           id: ${CIRCLE_WORKFLOW_ID:0:7}
           
   deploy-frontend:
