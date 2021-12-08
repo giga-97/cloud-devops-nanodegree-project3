@@ -7,35 +7,26 @@
         - openssh
         - rsync
       state: present
-     
+      
   - name: "move files to server"
     become: yes
-    copy:
-      src: /root/project/backend_artifact.tar.gz
-      dest: /home/ubuntu/udapeople
+    synchronize:
+      src: /root/project/backend/dist
+      dest: ./udapeople
+      recursive: true
 
   - name: "move node modules"
     become: yes
     synchronize:
       src: /root/project/backend/node_modules
-      dest: /home/ubuntu/udapeople
+      dest: ./udapeople
       recursive: true
-      
-  - name: "Install package dependencies"
-    shell: |
-      cd /home/ubuntu/udapeople
-      tar -xzvf backend_artifact.tar.gz -C backend
-      rm backend_artifact.tar.gz
-      cd backend/
-      npm run build
-      cd dist
-      pm2 start npm --name backend -- start   
-      
+
   - name: "run server"
     become: true
     command: pm2 start -f ./main.js
     args:
-      chdir: /home/ubuntu/udapeople/backend/dist
+      chdir: ./udapeople/dist
     environment:
       ENVIRONMENT: production
       TYPEORM_CONNECTION: "{{ lookup('env', 'TYPEORM_CONNECTION') }}"
