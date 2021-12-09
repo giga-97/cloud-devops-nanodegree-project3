@@ -410,7 +410,7 @@ jobs:
             BACKEND_URL=$(curl -H "token: ca152798-fc6a-4e03-ba92-79dc7decc1e0" --request GET https://api.memstash.io/values/BACKEND_URL)
             API_URL="${BACKEND_URL}/api/status"
             echo "${API_URL}"
-            # curl "${API_URL}"
+            curl "${API_URL}"
       - run:
           name: Frontend smoke test.
           command: |
